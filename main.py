@@ -20,9 +20,6 @@ CALLBACKS = [
     # keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"),
 ]
 
-
-# https://www.kaggle.com/datasets/zlatan599/garbage-dataset-classification?resource=download
-
 data_augmentation_layers = [
     layers.RandomFlip("horizontal"),
     layers.RandomRotation(0.1),
