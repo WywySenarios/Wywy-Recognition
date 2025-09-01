@@ -37,7 +37,7 @@ def create_model(input_shape, num_classes):
     Creates and trains a model to detect drawings of Wywys from pieces of trash using data supplied from the filesystem.
     """
     inputs = keras.Input(shape=input_shape)
-    # x = data_augmentation(inputs)
+    x = data_augmentation(inputs)
     x = layers.Rescaling(1./255)(x)
 
     x = keras.layers.Conv2D(128, 3, strides=2, padding="same")(x)
