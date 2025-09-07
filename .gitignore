@@ -180,8 +180,8 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# ignore data used to train the model
-# data/*
+# Training output
+models/
 
 # ignore utility script
 util_split.py

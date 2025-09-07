@@ -4,20 +4,23 @@ Creates a model that, given a digital, monochrome 255x255 drawing, can distingui
 This requires data to be stored in the data folder with a subfolder called "wywy" which contains many drawings of wywy heads and a subfolder called "doodles" which contains many drawings of doodles that are not wywy heads.
 """
 import tensorflow as tf
-from tensorflow import data as tf_data
+# from tensorflow import data as tf_data
 import keras
 from keras import layers
 import numpy as np
 import matplotlib.pyplot as plt
 
 # CONSTANTS
-IMAGE_SHAPE = (255, 255, 1)
-IMAGE_SIZE = (255, 255)
+SEED = 1234
+DATA_DIR = "data"
+# What resolution should Keras load up the image data as?
+IMAGE_SHAPE = (128, 128, 1)
+IMAGE_SIZE= (128, 128)
 BATCH_SIZE = 150
 DROPOUT_RATE = 0.25
 EPOCHS = 25
 CALLBACKS = [
-    # keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"),
+    keras.callbacks.ModelCheckpoint("models/epoch_{epoch}.keras"),
 ]
 
 data_augmentation_layers = [
@@ -25,108 +28,64 @@ data_augmentation_layers = [
     layers.RandomRotation(0.1),
 ]
 
+def normalize(image, label):
+    return tf.cast(image, tf.float32) / 255., label
 
-def data_augmentation(images):
-    for layer in data_augmentation_layers:
-        images = layer(images)
-    return images
-
-# @TODO
-def create_model(input_shape, num_classes):
-    """
-    Creates and trains a model to detect drawings of Wywys from pieces of trash using data supplied from the filesystem.
-    """
-    inputs = keras.Input(shape=input_shape)
-    x = data_augmentation(inputs)
-    x = layers.Rescaling(1./255)(x)
-
-    x = keras.layers.Conv2D(128, 3, strides=2, padding="same")(x)
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-
-    previous_block_activation = x
-
-    # add a couple of nested activation blocks
-    for size in [256, 512, 728]:
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.SeparableConv2D(size, 3, padding="same")(x)
-        x = keras.layers.BatchNormalization()(x)
-
-        x = keras.layers.Activation("relu")(x)
-        x = keras.layers.SeparableConv2D(size, 3, padding="same")(x)
-        x = keras.layers.BatchNormalization()(x)
-
-        x = keras.layers.MaxPooling2D(3, strides=2, padding="same")(x)
-
-        # Project residual
-        residual = keras.layers.Conv2D(size, 1, strides=2, padding="same")(previous_block_activation)
-        x = keras.layers.add([x, residual]) # Add back residual
-        previous_block_activation = x
-
-    x = keras.layers.SeparableConv2D(1024, 3, padding="same")(x)
-    x = keras.layers.BatchNormalization()(x)
-    x = keras.layers.Activation("relu")(x)
-
-    x = keras.layers.GlobalAveragePooling2D()(x)
-    if num_classes == 2:
-        units = 1
-    else:
-        units = num_classes
-
-    # set Dropout to combat overfitting
-    x = keras.layers.Dropout(DROPOUT_RATE)(x)
-
-    outputs = keras.layers.Dense(units, activation=None)(x)
-    return keras.Model(inputs, outputs)
-
-if __name__ == "__main__":
-    # prepare to extract training & validation data
-    train_ds, val_ds = keras.utils.image_dataset_from_directory(
-        "data",
+def load_dataset():
+    train_ds = tf.keras.utils.image_dataset_from_directory(
+        DATA_DIR,
         validation_split=0.2,
-        subset="both",
-        seed=1337,
+        subset="training",
+        seed=SEED,
         image_size=IMAGE_SIZE,
         batch_size=BATCH_SIZE,
-        color_mode="grayscale",
     )
+    
+    val_ds = tf.keras.utils.image_dataset_from_directory(
+        DATA_DIR,
+        validation_split=0.2,
+        subset="validation",
+        seed=SEED,
+        image_size=IMAGE_SIZE,
+        batch_size=BATCH_SIZE,
+    )
+    
+    train_ds = train_ds.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
+    train_ds = train_ds.cache()
+    # train_ds = train_ds.shuffle(info.splits["train"].num_examples)
+    # train_ds = train_ds.batch(128)
+    train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
+    
+    val_ds = val_ds.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
+    val_ds = val_ds.cache()
+    # val_ds = val_ds.shuffle(info.splits["train"].num_examples)
+    # val_ds = val_ds.batch(128)
+    val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
+    
+    return train_ds, val_ds
 
-    # Prefetching samples in GPU memory helps maximize GPU utilization.
-    train_ds = train_ds.prefetch(tf_data.AUTOTUNE)
-    val_ds = val_ds.prefetch(tf_data.AUTOTUNE)
-
-    # visualize a small sample of the images (first few)
-    plt.figure(figsize=(10, 10))
-    for images, labels in train_ds.take(1):
-        for i in range(9):
-            ax = plt.subplot(3, 3, i + 1)
-            plt.imshow(np.array(images[i]).astype("uint8"))
-            plt.title("Plot " + str(i))
-            plt.axis("off")
-
-    model = create_model(IMAGE_SHAPE, 2)
-
+def train_model(train, test):
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Resizing(height=128,width=128),
+        tf.keras.layers.Flatten(input_shape=(128, 128)),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dense(2, activation='softmax'),
+    ])
+    
     model.compile(
-        optimizer="adam",
-        loss=keras.losses.BinaryCrossentropy(from_logits=True),
-        metrics=[keras.metrics.BinaryAccuracy(name="acc")]
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        metrics=["accuracy"]
     )
-
-    print("Train cardinality:", tf.data.experimental.cardinality(train_ds))
-    print("Val cardinality:", tf.data.experimental.cardinality(val_ds))
-
+    
     model.fit(
-        train_ds,
+        train,
         epochs=EPOCHS,
+        validation_data=test,
         callbacks=CALLBACKS,
-        validation_data=val_ds,
-        # verbose="1",
     )
 
-    # save the model for testing & future use
-    model.save("model.keras")
-
-
+if __name__ == "__main__":
+    train, test = load_dataset()
     
-
-    
+    train_model(train, test)
