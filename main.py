@@ -66,8 +66,8 @@ def load_dataset():
 
 def train_model(train, test):
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Resizing(height=128,width=128),
-        tf.keras.layers.Flatten(input_shape=(128, 128)),
+        tf.keras.layers.Resizing(height=IMAGE_SIZE[1],width=IMAGE_SIZE[0]),
+        tf.keras.layers.Flatten(input_shape=IMAGE_SHAPE),
         tf.keras.layers.Dense(128, activation='relu'),
         tf.keras.layers.Dense(2, activation='softmax'),
     ])
