@@ -3,25 +3,11 @@ Creates a model that, given a digital, monochrome 255x255 drawing, can distingui
 
 This requires data to be stored in the data folder with a subfolder called "wywy" which contains many drawings of wywy heads and a subfolder called "doodles" which contains many drawings of doodles that are not wywy heads.
 """
+from constants import MODEL
 import tensorflow as tf
 # from tensorflow import data as tf_data
-import keras
 from keras import layers
 import numpy as np
-import matplotlib.pyplot as plt
-
-# CONSTANTS
-SEED = 1234
-DATA_DIR = "data"
-# What resolution should Keras load up the image data as?
-IMAGE_SHAPE = (128, 128, 1)
-IMAGE_SIZE= (128, 128)
-BATCH_SIZE = 150
-DROPOUT_RATE = 0.25
-EPOCHS = 25
-CALLBACKS = [
-    keras.callbacks.ModelCheckpoint("models/epoch_{epoch}.keras"),
-]
 
 data_augmentation_layers = [
     layers.RandomFlip("horizontal"),
@@ -33,21 +19,21 @@ def normalize(image, label):
 
 def load_dataset():
     train_ds = tf.keras.utils.image_dataset_from_directory(
-        DATA_DIR,
+        MODEL.DATA_DIR,
         validation_split=0.2,
         subset="training",
-        seed=SEED,
-        image_size=IMAGE_SIZE,
-        batch_size=BATCH_SIZE,
+        seed=MODEL.SEED,
+        image_size=MODEL.IMAGE_SIZE,
+        batch_size=MODEL.BATCH_SIZE,
     )
     
     val_ds = tf.keras.utils.image_dataset_from_directory(
-        DATA_DIR,
+        MODEL.DATA_DIR,
         validation_split=0.2,
         subset="validation",
-        seed=SEED,
-        image_size=IMAGE_SIZE,
-        batch_size=BATCH_SIZE,
+        seed=MODEL.SEED,
+        image_size=MODEL.IMAGE_SIZE,
+        batch_size=MODEL.BATCH_SIZE,
     )
     
     train_ds = train_ds.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
@@ -66,8 +52,8 @@ def load_dataset():
 
 def train_model(train, test):
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Resizing(height=IMAGE_SIZE[1],width=IMAGE_SIZE[0]),
-        tf.keras.layers.Flatten(input_shape=IMAGE_SHAPE),
+        tf.keras.layers.Resizing(height=MODEL.IMAGE_SIZE[1],width=MODEL.IMAGE_SIZE[0]),
+        tf.keras.layers.Flatten(input_shape=MODEL.IMAGE_SHAPE),
         tf.keras.layers.Dense(128, activation='relu'),
         tf.keras.layers.Dense(2, activation='softmax'),
     ])
@@ -80,9 +66,9 @@ def train_model(train, test):
     
     model.fit(
         train,
-        epochs=EPOCHS,
+        epochs=MODEL.EPOCHS,
         validation_data=test,
-        callbacks=CALLBACKS,
+        callbacks=MODEL.CALLBACKS,
     )
 
 if __name__ == "__main__":

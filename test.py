@@ -3,54 +3,38 @@ import os
 import numpy as np
 from PIL import Image
 from tensorflow import keras
+from constants import PYGAME_UI as PYGCFG
+from constants import MODEL
 
 pygame.init()
 fps = 60
 timer = pygame.time.Clock()
 
-VERBOSE = True
-
 # Menu & UI
-WIDTH = 255
-HEIGHT = 255 + 70 + 3
 font = pygame.font.SysFont(None, 36)
-canvas = pygame.Surface((WIDTH, HEIGHT))
+canvas = pygame.Surface((PYGCFG.WIDTH, PYGCFG.HEIGHT))
 canvas.fill("white")
-
-# brush settings
-BRUSH_SIZE = 5
-BRUSH_COLOR = "black"
-BRUSH_PREVIEW_COLOR = (136, 138, 137)
-
-screen = pygame.display.set_mode([WIDTH, HEIGHT])
+screen = pygame.display.set_mode([PYGCFG.WIDTH, PYGCFG.HEIGHT])
 pygame.display.set_caption("Wywy Recognition")
-
-# ML constants
-IMAGE_SHAPE = (128, 128, 1)
-IMAGE_SIZE = (128, 128)
-MODELS_PATH = "models"
-DEFAULT_MODEL_PATH = "models/epoch_13.keras"
-GET_ALL_MODELS = False
-MODELS_NAMES = ["epoch_13", "epoch_14"]
 
 # runtime/data variables
 prediction = None
 running = True
 
 models = []
-if GET_ALL_MODELS:
-    for model_name in os.listdir(MODELS_PATH):
+if MODEL.GET_ALL_MODELS:
+    for model_name in os.listdir(MODEL.MODELS_PATH):
         if model_name.endswith(".keras"):
-            models.append(keras.models.load_model(os.path.join(MODELS_PATH, model_name)))
+            models.append(keras.models.load_model(os.path.join(MODEL.MODELS_PATH, model_name)))
 else:
-    for model_name in MODELS_NAMES:
-        models.append(keras.models.load_model(os.path.join(MODELS_PATH, model_name) + ".keras"))
+    for model_name in MODEL.MODELS_NAMES:
+        models.append(keras.models.load_model(os.path.join(MODEL.MODELS_PATH, model_name) + ".keras"))
         
-default_model = keras.models.load_model(DEFAULT_MODEL_PATH)
+default_model = keras.models.load_model(MODEL.DEFAULT_MODEL_PATH)
 
 def draw_menu():
-    pygame.draw.rect(screen, "gray", [0, 0, WIDTH, 70])
-    pygame.draw.line(screen, 'black', (0, 70), (WIDTH, 70), 3)
+    pygame.draw.rect(screen, "gray", [0, 0, PYGCFG.WIDTH, 70])
+    pygame.draw.line(screen, 'black', (0, 70), (PYGCFG.WIDTH, 70), 3)
     
     if prediction is not None:
         pred_text = font.render(f"Prediction: {prediction}", True, (255, 255, 0))
@@ -61,17 +45,17 @@ def get_prediction():
     
     # Convert canvas to numpy image
     data = pygame.image.tostring(canvas, "RGB")     # canvas is RGB
-    img = Image.frombytes("RGB", (WIDTH, HEIGHT), data)
+    img = Image.frombytes("RGB", (PYGCFG.WIDTH, PYGCFG.HEIGHT), data)
     # img = img.convert("L")
-    img = img.resize(IMAGE_SIZE)
+    img = img.resize(MODEL.IMAGE_SIZE)
     arr = np.array(img, dtype=np.float32) / 255.0
-    arr = arr.reshape(1, *IMAGE_SIZE, 3)
+    arr = arr.reshape(1, *MODEL.IMAGE_SIZE, 3)
     
     # eat the image up and generate a prediction
     prediction = default_model.predict(arr, verbose=0)
     
     # (verbose) print out 
-    if VERBOSE:
+    if PYGCFG.VERBOSE:
         print("PREDICTIONS:\n")
         for model in models:
             current_prediction = model.predict(arr, verbose=0)
@@ -90,14 +74,14 @@ while running:
     # if the mouse is outside the information bar,
     if mouse[1] > 70:
         # create a preview of what the brush will paint
-        pygame.draw.circle(screen, BRUSH_PREVIEW_COLOR, mouse, BRUSH_SIZE)
+        pygame.draw.circle(screen, PYGCFG.BRUSH_PREVIEW_COLOR, mouse, PYGCFG.BRUSH_SIZE)
         
         # if the user is trying to draw,
         if left_click:
             if prev_pos is not None:
-                pygame.draw.line(canvas, "black", prev_pos, mouse, BRUSH_SIZE * 2)
+                pygame.draw.line(canvas, "black", prev_pos, mouse, PYGCFG.BRUSH_SIZE * 2)
             else:
-                pygame.draw.circle(canvas, "black", (mouse[0], mouse[1]), BRUSH_SIZE)
+                pygame.draw.circle(canvas, "black", (mouse[0], mouse[1]), PYGCFG.BRUSH_SIZE)
             prev_pos = pygame.mouse.get_pos()
         else:
             prev_pos = None
