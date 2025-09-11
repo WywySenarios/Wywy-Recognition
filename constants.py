@@ -34,3 +34,6 @@ class PYGAME_UI:
     
     # Print out the other models' predictions?
     VERBOSE = True
+
+class FILE_VALIDATION:
+    VALIDATION_FILES_PATH = "images_to_validate"
